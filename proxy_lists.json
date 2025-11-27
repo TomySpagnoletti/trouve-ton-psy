@@ -1,0 +1,202 @@
+[
+  {
+    "entryPoint": "disp.oxylabs.io",
+    "ip": "31.98.3.132",
+    "port": 8001,
+    "countryCode": "FR",
+    "asn": {
+      "name": "Free Pro",
+      "number": "30781"
+    }
+  },
+  {
+    "entryPoint": "disp.oxylabs.io",
+    "ip": "31.98.3.158",
+    "port": 8002,
+    "countryCode": "FR",
+    "asn": {
+      "name": "Free Pro",
+      "number": "30781"
+    }
+  },
+  {
+    "entryPoint": "disp.oxylabs.io",
+    "ip": "31.98.3.165",
+    "port": 8003,
+    "countryCode": "FR",
+    "asn": {
+      "name": "Free Pro",
+      "number": "30781"
+    }
+  },
+  {
+    "entryPoint": "disp.oxylabs.io",
+    "ip": "31.98.3.174",
+    "port": 8004,
+    "countryCode": "FR",
+    "asn": {
+      "name": "Free Pro",
+      "number": "30781"
+    }
+  },
+  {
+    "entryPoint": "disp.oxylabs.io",
+    "ip": "31.98.3.180",
+    "port": 8005,
+    "countryCode": "FR",
+    "asn": {
+      "name": "Free Pro",
+      "number": "30781"
+    }
+  },
+  {
+    "entryPoint": "disp.oxylabs.io",
+    "ip": "31.98.3.207",
+    "port": 8006,
+    "countryCode": "FR",
+    "asn": {
+      "name": "Free Pro",
+      "number": "30781"
+    }
+  },
+  {
+    "entryPoint": "disp.oxylabs.io",
+    "ip": "31.98.3.237",
+    "port": 8007,
+    "countryCode": "FR",
+    "asn": {
+      "name": "Free Pro",
+      "number": "30781"
+    }
+  },
+  {
+    "entryPoint": "disp.oxylabs.io",
+    "ip": "31.98.3.238",
+    "port": 8008,
+    "countryCode": "FR",
+    "asn": {
+      "name": "Free Pro",
+      "number": "30781"
+    }
+  },
+  {
+    "entryPoint": "disp.oxylabs.io",
+    "ip": "31.98.3.33",
+    "port": 8009,
+    "countryCode": "FR",
+    "asn": {
+      "name": "Free Pro",
+      "number": "30781"
+    }
+  },
+  {
+    "entryPoint": "disp.oxylabs.io",
+    "ip": "31.98.3.54",
+    "port": 8010,
+    "countryCode": "FR",
+    "asn": {
+      "name": "Free Pro",
+      "number": "30781"
+    }
+  },
+  {
+    "entryPoint": "disp.oxylabs.io",
+    "ip": "31.98.3.64",
+    "port": 8011,
+    "countryCode": "FR",
+    "asn": {
+      "name": "Free Pro",
+      "number": "30781"
+    }
+  },
+  {
+    "entryPoint": "disp.oxylabs.io",
+    "ip": "31.98.3.71",
+    "port": 8012,
+    "countryCode": "FR",
+    "asn": {
+      "name": "Free Pro",
+      "number": "30781"
+    }
+  },
+  {
+    "entryPoint": "disp.oxylabs.io",
+    "ip": "31.98.3.83",
+    "port": 8013,
+    "countryCode": "FR",
+    "asn": {
+      "name": "Free Pro",
+      "number": "30781"
+    }
+  },
+  {
+    "entryPoint": "disp.oxylabs.io",
+    "ip": "195.40.152.11",
+    "port": 8014,
+    "countryCode": "FR",
+    "asn": {
+      "name": "Orange",
+      "number": "5511"
+    }
+  },
+  {
+    "entryPoint": "disp.oxylabs.io",
+    "ip": "195.40.152.165",
+    "port": 8015,
+    "countryCode": "FR",
+    "asn": {
+      "name": "Orange",
+      "number": "5511"
+    }
+  },
+  {
+    "entryPoint": "disp.oxylabs.io",
+    "ip": "195.40.152.178",
+    "port": 8016,
+    "countryCode": "FR",
+    "asn": {
+      "name": "Orange",
+      "number": "5511"
+    }
+  },
+  {
+    "entryPoint": "disp.oxylabs.io",
+    "ip": "195.40.152.186",
+    "port": 8017,
+    "countryCode": "FR",
+    "asn": {
+      "name": "Orange",
+      "number": "5511"
+    }
+  },
+  {
+    "entryPoint": "disp.oxylabs.io",
+    "ip": "195.40.152.210",
+    "port": 8018,
+    "countryCode": "FR",
+    "asn": {
+      "name": "Orange",
+      "number": "5511"
+    }
+  },
+  {
+    "entryPoint": "disp.oxylabs.io",
+    "ip": "195.40.152.238",
+    "port": 8019,
+    "countryCode": "FR",
+    "asn": {
+      "name": "Orange",
+      "number": "5511"
+    }
+  },
+  {
+    "entryPoint": "disp.oxylabs.io",
+    "ip": "195.40.152.81",
+    "port": 8020,
+    "countryCode": "FR",
+    "asn": {
+      "name": "Orange",
+      "number": "5511"
+    }
+  }
+]

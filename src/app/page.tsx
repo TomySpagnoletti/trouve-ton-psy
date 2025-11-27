@@ -1,65 +1,118 @@
-import Image from "next/image";
+import Link from 'next/link';
+import { prisma } from '@/lib/prisma';
+import SearchBar from '@/components/SearchBar';
+import PsychologistList from '@/components/PsychologistList';
+import { Prisma, Psychologist } from '@/generated/client/client';
 
-export default function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  const q = typeof params.q === 'string' ? params.q : '';
+  const city = typeof params.city === 'string' ? params.city : '';
+  const publicAudience = typeof params.public === 'string' ? params.public : '';
+  const visio = params.visio === 'true';
+  const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
+  const limit = 50;
+  const skip = (page - 1) * limit;
+
+  const hasSearch = q || city || publicAudience || visio;
+
+  let psychologists: Psychologist[] = [];
+  let total = 0;
+
+  if (hasSearch) {
+    const where: Prisma.PsychologistWhereInput = {
+      visible: true,
+    };
+
+    if (q) {
+      where.OR = [
+        { lastname: { contains: q, mode: 'insensitive' } },
+        { firstname: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+
+    if (city) {
+      where.address = { contains: city, mode: 'insensitive' };
+    }
+
+    if (publicAudience) {
+      where.public = { contains: publicAudience, mode: 'insensitive' };
+    }
+
+    if (visio) {
+      where.teleconsultation = true;
+    }
+
+    try {
+      [psychologists, total] = await Promise.all([
+        prisma.psychologist.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { lastname: 'asc' },
+        }),
+        prisma.psychologist.count({ where }),
+      ]);
+    } catch (error) {
+      console.error('Database error:', error);
+      // Handle error gracefully (e.g. empty list)
+    }
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <main className="min-h-screen flex flex-col p-4 md:p-8 max-w-7xl mx-auto">
+      {/* Header / Hero Section */}
+      <div className={`transition-all duration-500 ease-in-out ${hasSearch ? 'mb-8' : 'flex flex-col items-center justify-center min-h-[60vh]'}`}>
+
+        {!hasSearch && (
+          <div className="text-center mb-12 max-w-2xl">
+            <h1 className="text-6xl font-black mb-6 tracking-tighter">TROUVE TON PSY</h1>
+            <p className="text-xl font-medium leading-relaxed">
+              Le moteur de recherche du gouvernement est insuffisant.
+              <br />
+              Trouvez le psychologue qui <span className="underline decoration-4 decoration-black">vous</span> correspond.
+            </p>
+            <p className="mt-4 text-gray-600">
+              Recherche par nom, ville, spécialité et téléconsultation.
+              <br />
+              Simple. Rapide. Efficace.
+            </p>
+          </div>
+        )}
+
+        {hasSearch && (
+          <div className="flex items-center justify-between mb-8 w-full border-b-2 border-black pb-4">
+            <h1 className="text-2xl font-black tracking-tighter">TROUVE TON PSY</h1>
+            <Link href="/" className="text-sm font-bold underline">Nouvelle recherche</Link>
+          </div>
+        )}
+
+        {/* Sticky Search Bar Container */}
+        <div className={`${hasSearch ? 'sticky top-4 z-50' : 'w-full'}`}>
+          <SearchBar />
+        </div>
+      </div>
+
+      {/* Results Section */}
+      {hasSearch && (
+        <PsychologistList
+          psychologists={psychologists}
+          currentPage={page}
+          totalPages={Math.ceil(total / limit)}
+          total={total}
+          searchParams={params}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      )}
+
+      {!hasSearch && (
+        <footer className="mt-auto text-center text-sm text-gray-500 py-8">
+          <p>Données officielles &quot;Mon Soutien Psy&quot; • Mis à jour régulièrement</p>
+        </footer>
+      )}
+    </main>
   );
 }

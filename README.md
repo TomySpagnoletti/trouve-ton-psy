@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Trouve Ton Psy
 
-## Getting Started
+Un moteur de recherche simple et efficace pour trouver un psychologue conventionné "Mon Soutien Psy".
 
-First, run the development server:
+## À propos
+Ce projet vise à offrir une alternative plus performante et ergonomique à l'annuaire officiel du gouvernement. Il permet de rechercher des psychologues par ville, nom, et d'appliquer des filtres pertinents (téléconsultation, public, spécialités, etc.).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+L'objectif est de simplifier l'accès aux soins en proposant une interface épurée (Noir & Blanc) et rapide.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Stack Technique
+- **Framework**: Next.js (App Router)
+- **Styling**: Tailwind CSS
+- **Database**: Supabase Postgres (via Prisma)
+- **Hosting**: Vercel
+- **Data Source**: API "Mon Soutien Psy"
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Fonctionnalités
+- **Recherche avancée** : Par ville, nom du praticien.
+- **Filtres** :
+  - Public (Adultes / Enfants)
+  - Téléconsultation (Visio)
+- **Mise à jour automatique** : Les données sont synchronisées régulièrement via des Cron Jobs.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Installation
 
-## Learn More
+1. Cloner le repo :
+   ```bash
+   git clone <url-du-repo>
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+2. Installer les dépendances :
+   ```bash
+   npm install
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. Configurer les variables d'environnement (dans `.env`)
+   ```env
+   # Connect to Supabase via connection pooling
+   DATABASE_URL="postgresql://..."
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   # Direct connection to the database. Used for migrations
+   DIRECT_URL="postgresql://..."
 
-## Deploy on Vercel
+   # Oxylabs ISP Proxies Authentication (Dedicated ISP Proxies)
+   # Used for all 20 proxies in proxy_lists.json
+   OXYLABS_USERNAME=xxx
+   OXYLABS_PASSWORD=xxx
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   # Parallel requests configuration
+   PARALLEL_REQUESTS=20
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+4. Lancer le serveur de développement :
+   ```bash
+   npm run dev
+   ```
+
+5. Initialiser la base de données :
+   ```bash
+   npx prisma db push
+   ```
+
+Pour plus d'informations, merci de nous contacter à trouvetonpsy@brainroad.xyz.
