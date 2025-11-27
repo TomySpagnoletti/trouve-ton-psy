@@ -117,7 +117,7 @@ async function fetchPsychologistsForCity(
 
     try {
         const fetchOptions: RequestInit = {
-            // @ts-ignore - Node.js fetch accepts agent
+            // @ts-expect-error - Node.js fetch accepts agent
             agent: agent
         };
 

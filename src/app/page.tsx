@@ -40,7 +40,7 @@ export default async function Home({
     }
 
     if (publicAudience) {
-      where.public = { contains: publicAudience, mode: 'insensitive' };
+      where.public = { has: publicAudience };
     }
 
     if (visio) {

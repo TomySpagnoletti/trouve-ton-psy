@@ -60,4 +60,32 @@ L'objectif est de simplifier l'accès aux soins en proposant une interface épur
    npx prisma db push
    ```
 
+## Scripts
+
+Le projet contient deux scripts principaux pour peupler la base de données.
+
+### 1. Import des Villes (`populate_cities.ts`)
+Ce script permet d'importer les villes depuis un fichier JSON (contenant les données INSEE, coordonnées, etc.).
+
+**Usage :**
+```bash
+npx tsx scripts/populate_cities.ts --file <chemin_vers_fichier_json>
+```
+
+### 2. Import des Psychologues (`populate_psychologists.ts`)
+Ce script est un ETL (Extract, Transform, Load) qui récupère les psychologues depuis l'annuaire Ameli via des proxies, les stocke temporairement dans une base SQLite locale (`temp_psychologists.db`), puis les envoie vers la base de données principale (Postgres).
+
+**Usage :**
+```bash
+# Lancer le processus complet (Extract + Buffer + Load)
+npx tsx scripts/populate_psychologists.ts
+
+# Lancer uniquement l'étape de chargement vers Postgres (si le buffer SQLite est déjà rempli)
+npx tsx scripts/populate_psychologists.ts --load-only
+```
+
+**Configuration (.env) :**
+- `PARALLEL_REQUESTS` : Nombre de requêtes parallèles (défaut: 20).
+- `OXYLABS_USERNAME` / `OXYLABS_PASSWORD` : Identifiants pour les proxies.
+
 Pour plus d'informations, merci de nous contacter à trouvetonpsy@brainroad.xyz.

@@ -24,14 +24,14 @@ export default function PsychologistList({ psychologists, currentPage, totalPage
 
             <div className="grid grid-cols-1 gap-6">
                 {psychologists.map((psy) => (
-                    <div key={psy.id} className="border-2 border-black p-6 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all bg-white">
+                    <div key={psy.id_in} className="border-2 border-black p-6 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all bg-white">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
                             <div>
                                 <h2 className="text-2xl font-black uppercase">{psy.lastname} {psy.firstname}</h2>
                                 <div className="flex gap-2 mt-2">
-                                    {psy.public && (
+                                    {psy.public && psy.public.length > 0 && (
                                         <span className="bg-black text-white text-xs font-bold px-2 py-1 uppercase">
-                                            {psy.public}
+                                            {psy.public.join(', ')}
                                         </span>
                                     )}
                                     {psy.teleconsultation && (

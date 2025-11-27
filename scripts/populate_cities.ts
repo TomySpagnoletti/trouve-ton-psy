@@ -95,6 +95,7 @@ async function main() {
 
     // Use for-await-of to process cities sequentially
     for await (const data of pipeline) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const cityData = (data as any).value;
 
         // Validate required fields

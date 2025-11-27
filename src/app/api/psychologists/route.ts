@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     }
 
     if (publicAudience) {
-        where.public = { contains: publicAudience, mode: 'insensitive' };
+        where.public = { has: publicAudience };
     }
 
     if (visio === 'true') {

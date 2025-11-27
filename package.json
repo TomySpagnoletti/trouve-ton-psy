@@ -12,6 +12,7 @@
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^6.19.0",
     "@types/better-sqlite3": "^7.6.13",
+    "@vercel/analytics": "^1.5.0",
     "better-sqlite3": "^12.4.6",
     "dotenv": "^17.2.3",
     "https-proxy-agent": "^7.0.6",

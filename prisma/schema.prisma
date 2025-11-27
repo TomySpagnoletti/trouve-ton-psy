@@ -16,8 +16,8 @@ model Psychologist {
   lastname          String
   address           String
   address_additional String?
-  coordinates_x     Float
-  coordinates_y     Float
+  coordinates_x     Float?
+  coordinates_y     Float?
   phone             String?
   email             String?
   website           String?
