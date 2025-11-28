@@ -80,7 +80,7 @@ sqlite.exec(`
 // Prepared statements for performance
 const stmtSelectPsy = sqlite.prepare('SELECT data, city_ids FROM psychologists WHERE id_out = ?');
 const stmtInsertPsy = sqlite.prepare('INSERT INTO psychologists (id_out, data, city_ids) VALUES (?, ?, ?)');
-const stmtUpdatePsy = sqlite.prepare('UPDATE psychologists SET city_ids = ? WHERE id_out = ?');
+const stmtUpdatePsy = sqlite.prepare('UPDATE psychologists SET data = ?, city_ids = ? WHERE id_out = ?');
 const stmtCountPsy = sqlite.prepare('SELECT COUNT(*) as count FROM psychologists');
 const stmtSelectAllPsy = sqlite.prepare('SELECT data, city_ids FROM psychologists');
 
@@ -102,9 +102,10 @@ console.log(`✓ SQLite Database initialized at ${SQLITE_DB_PATH}`);
 function parsePublicField(publicField: string | undefined): string[] {
     if (!publicField) return [];
     const result: string[] = [];
-    if (publicField.includes('Adultes')) result.push('Adultes');
-    if (publicField.includes('Adolescents')) result.push('Adolescents');
-    if (publicField.includes('Enfants')) result.push('Enfants');
+    // Case insensitive matching and optional 's' at the end
+    if (/adultes?/i.test(publicField)) result.push('Adultes');
+    if (/adolescents?/i.test(publicField)) result.push('Adolescents');
+    if (/enfants?/i.test(publicField)) result.push('Enfants');
     return result;
 }
 
@@ -164,14 +165,25 @@ function saveToLocalBuffer(psychologists: Psychologist[], cityId: number) {
             const existing = stmtSelectPsy.get(idOut) as { data: string, city_ids: string } | undefined;
 
             if (existing) {
-                // Deduplication: Merge city IDs
+                // Deduplication: Merge city IDs and check for data updates
                 const cityIds = JSON.parse(existing.city_ids) as number[];
+                let hasChanged = false;
+
+                // 1. Check City IDs
                 if (!cityIds.includes(cityId)) {
                     cityIds.push(cityId);
-                    stmtUpdatePsy.run(JSON.stringify(cityIds), idOut);
+                    hasChanged = true;
                 }
-                // We don't update 'data' assuming AMELI data is consistent. 
-                // If we wanted to update fields, we would do it here.
+
+                // 2. Check Data (fields like teleconsultation, visible, etc.)
+                const newData = JSON.stringify(psy);
+                if (existing.data !== newData) {
+                    hasChanged = true;
+                }
+
+                if (hasChanged) {
+                    stmtUpdatePsy.run(newData, JSON.stringify(cityIds), idOut);
+                }
             } else {
                 // Insert new
                 stmtInsertPsy.run(
