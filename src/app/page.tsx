@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import SearchBar from '@/components/SearchBar';
 import PsychologistList from '@/components/PsychologistList';
+import ContactEmail from '@/components/ContactEmail';
 import { Prisma, Psychologist } from '@/generated/client/client';
 
 export default async function Home({
@@ -17,6 +18,10 @@ export default async function Home({
   const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
   const limit = 50;
   const skip = (page - 1) * limit;
+
+  // Extract first postal code inside parentheses (supports single code, comma list, or range like 12345...67890)
+  const postalCodeMatch = city.match(/\((\d{5})/);
+  const cityNameOnly = postalCodeMatch ? city.replace(/\s*\([^)]*\)\s*$/, '').trim() : city;
 
   const hasSearch = q || city || publicAudience || visio;
 
@@ -36,7 +41,8 @@ export default async function Home({
     }
 
     if (city) {
-      where.address = { contains: city, mode: 'insensitive' };
+      // Use cityNameOnly for address search (without postal code)
+      where.address = { contains: cityNameOnly, mode: 'insensitive' };
     }
 
     if (publicAudience) {
@@ -48,15 +54,118 @@ export default async function Home({
     }
 
     try {
-      [psychologists, total] = await Promise.all([
-        prisma.psychologist.findMany({
-          where,
-          skip,
-          take: limit,
-          orderBy: { lastname: 'asc' },
-        }),
-        prisma.psychologist.count({ where }),
-      ]);
+      let fetchedPsychologists: Psychologist[] = [];
+
+      // Geolocation search if city is provided
+      let geoSearchPerformed = false;
+      if (city) {
+        // 1. Find the city coordinates using postal code
+        // Extract postal code (already extracted at the top)
+        const postalCode = postalCodeMatch ? postalCodeMatch[1].split('...')[0] : null;
+
+        let cityData;
+
+        if (postalCode) {
+          // Search by postal code ONLY - reliable and guaranteed to exist
+          cityData = await prisma.city.findFirst({
+            where: {
+              postal_codes: {
+                has: postalCode,
+              },
+            },
+          });
+        }
+        // No fallback - if no postal code in the query, we won't do GPS search
+        // We'll rely on the address-based fallback instead (line 167-178)
+
+        if (cityData && cityData.center_latitude && cityData.center_longitude) {
+          geoSearchPerformed = true;
+          const lat = cityData.center_latitude;
+          const lon = cityData.center_longitude;
+          const radiusKm = 15;
+
+          // 2. Raw SQL query for Haversine distance
+          // We also include other filters (q, public, visio) in the SQL
+
+          let sqlWhere = Prisma.sql`WHERE visible = true`;
+
+          if (q) {
+            sqlWhere = Prisma.sql`${sqlWhere} AND (lastname ILIKE ${'%' + q + '%'} OR firstname ILIKE ${'%' + q + '%'})`;
+          }
+          if (publicAudience) {
+            sqlWhere = Prisma.sql`${sqlWhere} AND ${publicAudience} = ANY(public)`;
+          }
+          if (visio) {
+            sqlWhere = Prisma.sql`${sqlWhere} AND teleconsultation = true`;
+          }
+
+          // Calculate distance using Haversine formula
+          // 6371 is Earth radius in km
+          // coordinates_x is Longitude, coordinates_y is Latitude
+          fetchedPsychologists = await prisma.$queryRaw`
+            SELECT *,
+            (
+              6371 * acos(
+                cos(radians(${lat})) * cos(radians(coordinates_y)) *
+                cos(radians(coordinates_x) - radians(${lon})) +
+                sin(radians(${lat})) * sin(radians(coordinates_y))
+              )
+            ) AS distance
+            FROM "Psychologist"
+            ${sqlWhere}
+            AND coordinates_x IS NOT NULL 
+            AND coordinates_y IS NOT NULL
+            AND (
+              6371 * acos(
+                cos(radians(${lat})) * cos(radians(coordinates_y)) *
+                cos(radians(coordinates_x) - radians(${lon})) +
+                sin(radians(${lat})) * sin(radians(coordinates_y))
+              )
+            ) < ${radiusKm}
+            ORDER BY lastname ASC
+            LIMIT ${limit}
+            OFFSET ${skip}
+          `;
+
+          // Count total for pagination (approximate or separate query)
+          const countResult = await prisma.$queryRaw<{ count: bigint }[]>`
+            SELECT COUNT(*)::int as count
+            FROM "Psychologist"
+            ${sqlWhere}
+            AND coordinates_x IS NOT NULL 
+            AND coordinates_y IS NOT NULL
+            AND (
+              6371 * acos(
+                cos(radians(${lat})) * cos(radians(coordinates_y)) *
+                cos(radians(coordinates_x) - radians(${lon})) +
+                sin(radians(${lat})) * sin(radians(coordinates_y))
+              )
+            ) < ${radiusKm}
+          `;
+          total = Number(countResult[0]?.count || 0);
+        }
+      }
+
+      // Fallback to standard Prisma query if no geo search was performed
+      if (!geoSearchPerformed) {
+        [fetchedPsychologists, total] = await Promise.all([
+          prisma.psychologist.findMany({
+            where,
+            skip,
+            take: limit,
+            orderBy: { lastname: 'asc' },
+          }),
+          prisma.psychologist.count({ where }),
+        ]);
+      }
+
+      // Sanitize data for security (phone/email fetched on demand)
+      psychologists = fetchedPsychologists.map(p => ({
+        ...p,
+        phone: null,
+        email: null
+      }));
+
     } catch (error) {
       console.error('Database error:', error);
       // Handle error gracefully (e.g. empty list)
@@ -64,53 +173,59 @@ export default async function Home({
   }
 
   return (
-    <main className="min-h-screen flex flex-col p-4 md:p-8 max-w-7xl mx-auto">
-      {/* Header / Hero Section */}
-      <div className={`transition-all duration-500 ease-in-out ${hasSearch ? 'mb-8' : 'flex flex-col items-center justify-center min-h-[60vh]'}`}>
+    <main className="min-h-screen flex flex-col p-2 md:p-4 max-w-7xl mx-auto font-sans">
+      <div className="flex-1 flex flex-col">
+        {/* Header / Hero Section */}
+        <div className={`transition-all duration-500 ease-in-out ${hasSearch ? 'mb-8' : 'flex flex-col items-center justify-center min-h-[60vh]'}`}>
 
-        {!hasSearch && (
-          <div className="text-center mb-12 max-w-2xl">
-            <h1 className="text-6xl font-black mb-6 tracking-tighter">TROUVE TON PSY</h1>
-            <p className="text-xl font-medium leading-relaxed">
-              Le moteur de recherche du gouvernement est insuffisant.
-              <br />
-              Trouvez le psychologue qui <span className="underline decoration-4 decoration-black">vous</span> correspond.
-            </p>
-            <p className="mt-4 text-gray-600">
-              Recherche par nom, ville, spécialité et téléconsultation.
-              <br />
-              Simple. Rapide. Efficace.
-            </p>
+          {!hasSearch && (
+            <div className="text-center mb-12 max-w-2xl">
+              <h1 className="text-4xl md:text-5xl font-black mb-6 tracking-tight text-primary-dark">TROUVE TON <span className="underline decoration-4 decoration-primary/30">SOUTIEN</span> PSY</h1>
+              <p className="text-xl font-medium leading-relaxed text-gray-700">
+                Le moteur de recherche du gouvernement est inutilisable.
+                <br />
+                Trouvez le psychologue qui <span className="text-primary font-bold underline decoration-4 decoration-primary/30">vous</span> correspond.
+              </p>
+              <p className="mt-6 text-gray-500">
+                Recherche par ville, par spécialité et téléconsultation.
+                <br />
+                Simple. Rapide. Efficace.
+              </p>
+            </div>
+          )}
+
+          {hasSearch && (
+            <div className="flex items-center justify-between mb-8 w-full border-b border-gray-200 pb-4">
+              <h1 className="text-2xl font-black tracking-tight text-primary-dark">
+                <Link href="/" className="hover:underline">TROUVE TON SOUTIEN PSY</Link>
+              </h1>
+              <Link href="/" className="text-sm font-bold text-primary hover:underline">Nouvelle recherche</Link>
+            </div>
+          )}
+
+          {/* Sticky Search Bar Container */}
+          <div className={`${hasSearch ? 'sticky top-4 z-50' : 'w-full'}`}>
+            <SearchBar />
           </div>
-        )}
-
-        {hasSearch && (
-          <div className="flex items-center justify-between mb-8 w-full border-b-2 border-black pb-4">
-            <h1 className="text-2xl font-black tracking-tighter">TROUVE TON PSY</h1>
-            <Link href="/" className="text-sm font-bold underline">Nouvelle recherche</Link>
-          </div>
-        )}
-
-        {/* Sticky Search Bar Container */}
-        <div className={`${hasSearch ? 'sticky top-4 z-50' : 'w-full'}`}>
-          <SearchBar />
         </div>
+
+        {/* Results Section */}
+        {hasSearch && (
+          <PsychologistList
+            psychologists={psychologists}
+            currentPage={page}
+            totalPages={Math.ceil(total / limit)}
+            total={total}
+            searchParams={params}
+          />
+        )}
       </div>
 
-      {/* Results Section */}
-      {hasSearch && (
-        <PsychologistList
-          psychologists={psychologists}
-          currentPage={page}
-          totalPages={Math.ceil(total / limit)}
-          total={total}
-          searchParams={params}
-        />
-      )}
-
       {!hasSearch && (
-        <footer className="mt-auto text-center text-sm text-gray-500 py-8">
-          <p>Données officielles &quot;Mon Soutien Psy&quot; • Mis à jour régulièrement</p>
+        <footer className="mt-12 text-center text-sm text-gray-500">
+          <p>
+            Données officielles &quot;Mon Soutien Psy&quot; • Mis à jour régulièrement • <ContactEmail />
+          </p>
         </footer>
       )}
     </main>

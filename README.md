@@ -1,4 +1,4 @@
-# Trouve Ton Psy
+# Trouve Ton (Soutien) Psy
 
 Un moteur de recherche simple et efficace pour trouver un psychologue conventionné "Mon Soutien Psy".
 

@@ -37,8 +37,10 @@ model City {
   region_name               String
   department_code           String
   department_name           String
-  postal_code               String
+  postal_codes              String[]
   center_latitude           Float
   center_longitude          Float
   last_psychologist_fetch   DateTime?
+
+  @@index([name])
 }
