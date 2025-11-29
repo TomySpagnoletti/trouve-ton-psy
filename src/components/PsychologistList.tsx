@@ -1,5 +1,8 @@
-import Link from 'next/link';
+ 'use client';
+
 import { Psychologist } from '@prisma/client';
+import { useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import PsychologistCard from './PsychologistCard';
 
 interface Props {
@@ -11,6 +14,9 @@ interface Props {
 }
 
 export default function PsychologistList({ psychologists, currentPage, totalPages, total, searchParams }: Props) {
+    const router = useRouter();
+    const [isRouting, startTransition] = useTransition();
+
     const createPageLink = (page: number) => {
         const params = new URLSearchParams(searchParams as Record<string, string>);
         params.set('page', page.toString());
@@ -38,17 +44,26 @@ export default function PsychologistList({ psychologists, currentPage, totalPage
             {totalPages > 1 && (
                 <div className="flex justify-center items-center gap-3 mt-12 mb-12">
                     {currentPage > 1 && (
-                        <Link
-                            href={createPageLink(currentPage - 1)}
-                            className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 hover:text-primary transition-colors"
+                        <button
+                            onClick={() => {
+                                startTransition(() => {
+                                    router.push(createPageLink(currentPage - 1));
+                                });
+                            }}
+                            className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 hover:text-primary transition-colors disabled:opacity-60"
+                            disabled={isRouting}
                         >
                             Précédent
-                        </Link>
+                        </button>
                     )}
 
                     <div className="flex items-center gap-1">
-                        <span className="px-4 py-2 rounded-lg bg-primary text-white font-bold shadow-sm">
-                            {currentPage}
+                        <span className="px-4 py-2 rounded-lg bg-primary text-white font-bold shadow-sm min-w-[52px] flex items-center justify-center">
+                            {isRouting ? (
+                                <span className="h-4 w-4 border-2 border-white/70 border-t-transparent rounded-full animate-spin" aria-label="Chargement" />
+                            ) : (
+                                currentPage
+                            )}
                         </span>
                         <span className="text-gray-400 font-medium px-2">/</span>
                         <span className="text-gray-600 font-medium">
@@ -57,12 +72,17 @@ export default function PsychologistList({ psychologists, currentPage, totalPage
                     </div>
 
                     {currentPage < totalPages && (
-                        <Link
-                            href={createPageLink(currentPage + 1)}
-                            className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 hover:text-primary transition-colors"
+                        <button
+                            onClick={() => {
+                                startTransition(() => {
+                                    router.push(createPageLink(currentPage + 1));
+                                });
+                            }}
+                            className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 hover:text-primary transition-colors disabled:opacity-60"
+                            disabled={isRouting}
                         >
                             Suivant
-                        </Link>
+                        </button>
                     )}
                 </div>
             )}

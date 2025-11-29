@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { searchCities } from '@/app/actions';
 
@@ -20,6 +20,10 @@ export default function SearchBar() {
     const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const latestRequestId = useRef(0);
     const suggestionsCache = useRef<Map<string, string[]>>(new Map());
+    const [isFetchingCities, setIsFetchingCities] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isPending, startTransition] = useTransition();
+    const searchKey = searchParams.toString();
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -35,6 +39,13 @@ export default function SearchBar() {
             }
         };
     }, []);
+
+    useEffect(() => {
+        // Reset loading state after navigation completes
+        if (!isPending) {
+            setIsSubmitting(false);
+        }
+    }, [searchKey, isPending]);
 
     const handleCityChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
@@ -63,6 +74,7 @@ export default function SearchBar() {
         const requestId = ++latestRequestId.current;
         debounceTimeoutRef.current = setTimeout(async () => {
             try {
+                setIsFetchingCities(true);
                 const results = await searchCities(normalized);
                 if (requestId !== latestRequestId.current) return;
                 suggestionsCache.current.set(normalized.toLowerCase(), results);
@@ -72,6 +84,10 @@ export default function SearchBar() {
                 if (requestId !== latestRequestId.current) return;
                 console.error('City search failed:', error);
                 setShowSuggestions(false);
+            } finally {
+                if (requestId === latestRequestId.current) {
+                    setIsFetchingCities(false);
+                }
             }
         }, 120);
     };
@@ -113,7 +129,10 @@ export default function SearchBar() {
         // Reset page to 1 on new search
         params.set('page', '1');
 
-        router.push(`/?${params.toString()}`);
+        setIsSubmitting(true);
+        startTransition(() => {
+            router.push(`/?${params.toString()}`);
+        });
     };
 
     return (
@@ -122,19 +141,26 @@ export default function SearchBar() {
 
                 <div className="flex-1 w-full md:w-auto flex flex-col relative" ref={wrapperRef}>
                     <label className="text-xs font-semibold text-gray-500 mb-1 ml-1 uppercase tracking-wide">Ville</label>
-                    <input
-                        type="text"
-                        name="city_search"
-                        id="city_search"
-                        autoComplete="off"
-                        data-1p-ignore
-                        value={city}
-                        onChange={handleCityChange}
-                        onKeyDown={handleKeyDown}
-                        onFocus={() => city.length >= 3 && setShowSuggestions(true)}
-                        placeholder="Ex: Bordeaux"
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                    />
+                    <div className="relative">
+                        <input
+                            type="text"
+                            name="city_search"
+                            id="city_search"
+                            autoComplete="off"
+                            data-1p-ignore
+                            value={city}
+                            onChange={handleCityChange}
+                            onKeyDown={handleKeyDown}
+                            onFocus={() => city.length >= 3 && setShowSuggestions(true)}
+                            placeholder="Ex: Bordeaux"
+                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        />
+                        {isFetchingCities && (
+                            <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                                <span className="h-4 w-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" aria-label="Chargement des villes" />
+                            </div>
+                        )}
+                    </div>
                     {showSuggestions && citySuggestions.length > 0 && (
                         <ul className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto">
                             {citySuggestions.map((suggestion, index) => (
@@ -201,12 +227,22 @@ export default function SearchBar() {
                 <div className="pt-6 w-full md:w-auto">
                     <button
                         type="submit"
-                        className="w-full md:w-auto bg-primary text-white font-bold py-3 px-8 rounded-xl hover:bg-primary-dark transition-all shadow-md hover:shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                        className="w-full md:w-auto bg-primary text-white font-bold py-3 px-8 rounded-xl hover:bg-primary-dark transition-all shadow-md hover:shadow-lg active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60"
+                        disabled={isSubmitting || isPending}
                     >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                        Trouver
+                        {isSubmitting || isPending ? (
+                            <span className="flex items-center gap-2">
+                                <span className="h-4 w-4 border-2 border-white/70 border-t-transparent rounded-full animate-spin" />
+                                Recherche...
+                            </span>
+                        ) : (
+                            <>
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                Trouver
+                            </>
+                        )}
                     </button>
                 </div>
             </form>

@@ -27,6 +27,12 @@ model Psychologist {
   cityIds           Int[]    @default([])
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+
+  @@index([lastname])
+  @@index([address])
+  @@index([visible])
+  @@index([teleconsultation])
+  @@index([coordinates_x, coordinates_y])
 }
 
 model City {
