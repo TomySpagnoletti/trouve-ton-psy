@@ -10,7 +10,7 @@ import * as readline from 'readline';
 interface CsvCity {
     code_postal: string;
     nom_de_la_commune?: string;
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 interface GeoApiCommune {

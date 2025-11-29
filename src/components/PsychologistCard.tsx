@@ -52,6 +52,22 @@ export default function PsychologistCard({ psy }: Props) {
         }
     };
 
+    const safeWebsite = (() => {
+        if (!psy.website) return null;
+        try {
+            const normalized = psy.website.startsWith('http')
+                ? psy.website
+                : `https://${psy.website}`;
+            const url = new URL(normalized);
+            if (url.protocol === 'http:' || url.protocol === 'https:') {
+                return url.toString();
+            }
+        } catch (error) {
+            console.error('Invalid website URL skipped:', error);
+        }
+        return null;
+    })();
+
     return (
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 group">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
@@ -125,8 +141,8 @@ export default function PsychologistCard({ psy }: Props) {
                 </div>
 
                 <div className="flex items-center md:justify-end">
-                    {psy.website && (
-                        <a href={psy.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl text-sm font-semibold transition-colors">
+                    {safeWebsite && (
+                        <a href={safeWebsite} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl text-sm font-semibold transition-colors">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
                             Site Web
                         </a>

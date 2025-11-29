@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { prisma } from '../src/lib/prisma.js';
+import { prisma } from '../src/lib/prisma';
 
 async function testCitySearch(cityInput: string) {
     console.log(`\n${'='.repeat(60)}`);
@@ -66,7 +66,7 @@ async function testCitySearch(cityInput: string) {
         const lon = cityData.center_longitude;
         const radiusKm = 15;
 
-        const count: any = await prisma.$queryRaw`
+        const count = await prisma.$queryRaw<Array<{ count: number }>>`
       SELECT COUNT(*)::int as count
       FROM "Psychologist"
       WHERE visible = true
@@ -81,7 +81,7 @@ async function testCitySearch(cityInput: string) {
       ) < ${radiusKm}
     `;
 
-        console.log(`   Psychologists within ${radiusKm}km: ${count[0].count}`);
+        console.log(`   Psychologists within ${radiusKm}km: ${count[0]?.count ?? 0}`);
     } else {
         console.log(`\n❌ No city found!`);
     }

@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { prisma } from '../src/lib/prisma.js';
+import { prisma } from '../src/lib/prisma';
 
 async function main() {
     console.log('Checking cities named "La Rochelle" in database...\n');

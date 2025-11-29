@@ -2,13 +2,32 @@
 
 import { prisma } from '@/lib/prisma';
 
+const contactRateWindowMs = 10_000;
+const contactRateLimit = 50;
+const contactTimestamps =
+    (global as unknown as { __contactRequests?: number[] }).__contactRequests ||
+    [];
+(global as unknown as { __contactRequests?: number[] }).__contactRequests =
+    contactTimestamps;
+
 export async function getContactInfo(id: number) {
-    // Simulate a delay to make it feel like a secure query if it's too fast
-    // await new Promise(resolve => setTimeout(resolve, 300));
+    if (!Number.isInteger(id) || id <= 0) {
+        return { error: 'Invalid request' };
+    }
+
+    const now = Date.now();
+    contactTimestamps.push(now);
+    // Keep only recent timestamps
+    while (contactTimestamps.length && contactTimestamps[0] < now - contactRateWindowMs) {
+        contactTimestamps.shift();
+    }
+    if (contactTimestamps.length > contactRateLimit) {
+        return { error: 'Too many requests. Please try again shortly.' };
+    }
 
     try {
         const psychologist = await prisma.psychologist.findUnique({
-            where: { id_in: id },
+            where: { id_in: id, visible: true },
             select: {
                 phone: true,
                 email: true,

@@ -12,7 +12,6 @@ async function main() {
         console.log(psy);
 
         const city = await prisma.city.findFirst({
-            where: { center_latitude: { not: null } },
             select: { name: true, center_latitude: true, center_longitude: true }
         });
         console.log('--- EXEMPLE VILLE ---');

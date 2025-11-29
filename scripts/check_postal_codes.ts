@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { prisma } from '../src/lib/prisma.js';
+import { prisma } from '../src/lib/prisma';
 
 async function main() {
     console.log('Checking postal codes coverage in City table...\n');

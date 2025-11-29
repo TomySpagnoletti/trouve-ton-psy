@@ -3,7 +3,6 @@ import { PrismaClient } from '../src/generated/client/client';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import proxyList from '../proxy_lists.json';
 import Database from 'better-sqlite3';
-import fs from 'fs';
 
 // --- Types ---
 
@@ -85,6 +84,10 @@ const stmtCountPsy = sqlite.prepare('SELECT COUNT(*) as count FROM psychologists
 const stmtSelectAllPsy = sqlite.prepare('SELECT data, city_ids FROM psychologists');
 
 // --- Proxy Setup ---
+
+if (!process.env.OXYLABS_USERNAME || !process.env.OXYLABS_PASSWORD) {
+    throw new Error('OXYLABS_USERNAME and OXYLABS_PASSWORD must be set to use proxies');
+}
 
 const proxyAgents: ProxyAgent[] = proxyList.map((proxy: ProxyConfig) => {
     const proxyUrl = `https://${process.env.OXYLABS_USERNAME}:${process.env.OXYLABS_PASSWORD}@${proxy.entryPoint}:${proxy.port}`;
@@ -207,7 +210,7 @@ async function loadToPostgres(prisma: PrismaClient) {
     const allPsys = stmtSelectAllPsy.all() as { data: string, city_ids: string }[];
 
     // Process in batches of 1000 to avoid memory issues and huge transactions
-    const BATCH_SIZE = 1000;
+    const BATCH_SIZE = 250;
     const CONCURRENT_BATCHES = 10; // Use 10 connections as requested
 
     let processed = 0;
@@ -243,7 +246,7 @@ async function loadToPostgres(prisma: PrismaClient) {
                             website: psy.website || null,
                             public: publicArray,
                             teleconsultation: psy.teleconsultation || false,
-                            visible: psy.visible || true,
+                            visible: psy.visible ?? true,
                             cityIds: cityIds, // New array field
                         },
                         create: {
@@ -259,7 +262,7 @@ async function loadToPostgres(prisma: PrismaClient) {
                             website: psy.website || null,
                             public: publicArray,
                             teleconsultation: psy.teleconsultation || false,
-                            visible: psy.visible || true,
+                            visible: psy.visible ?? true,
                             cityIds: cityIds, // New array field
                         },
                     });
@@ -400,6 +403,7 @@ async function main() {
         const successRate = total > 0 ? ((stats.success / total) * 100).toFixed(1) : '0.0';
         console.log(`Proxy ${config.port} (${config.asn.name}): ${stats.success} success, ${stats.errors} errors (${successRate}% success rate)`);
     });
+    console.log(`Totals — success: ${totalSuccess}, errors: ${totalErrors}`);
     console.log('======================================\n');
 
     await prisma.$disconnect();

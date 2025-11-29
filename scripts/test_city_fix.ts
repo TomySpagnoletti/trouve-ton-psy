@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { prisma } from '../src/lib/prisma.js';
+import { prisma } from '../src/lib/prisma';
 
 async function main() {
     const cityQuery = "La Rochelle";
@@ -32,7 +32,15 @@ async function main() {
     const lon = cityData.center_longitude;
     const radiusKm = 15;
 
-    const nearbyPsychologists: any = await prisma.$queryRaw`
+    const nearbyPsychologists = await prisma.$queryRaw<Array<{
+        id_in: number;
+        firstname: string;
+        lastname: string;
+        address: string;
+        coordinates_x: number | null;
+        coordinates_y: number | null;
+        distance: number;
+    }>>`
     SELECT id_in, firstname, lastname, address, coordinates_x, coordinates_y,
     (
       6371 * acos(
@@ -57,7 +65,7 @@ async function main() {
   `;
 
     console.log(`\n🔍 Found ${nearbyPsychologists.length} psychologists within ${radiusKm}km:\n`);
-    nearbyPsychologists.forEach((p: any, i: number) => {
+    nearbyPsychologists.forEach((p, i: number) => {
         console.log(`${i + 1}. ${p.firstname} ${p.lastname} (${p.distance.toFixed(2)}km)`);
         console.log(`   ${p.address}`);
     });

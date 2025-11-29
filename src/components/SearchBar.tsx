@@ -17,6 +17,8 @@ export default function SearchBar() {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const wrapperRef = useRef<HTMLDivElement>(null);
+    const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const latestRequestId = useRef(0);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -25,7 +27,12 @@ export default function SearchBar() {
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            if (debounceTimeoutRef.current) {
+                clearTimeout(debounceTimeoutRef.current);
+            }
+        };
     }, []);
 
     const handleCityChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -33,14 +40,29 @@ export default function SearchBar() {
         setCity(value);
         setSelectedIndex(-1);
 
-        if (value.length >= 3) {
-            const results = await searchCities(value);
-            setCitySuggestions(results);
-            setShowSuggestions(true);
-        } else {
+        if (debounceTimeoutRef.current) {
+            clearTimeout(debounceTimeoutRef.current);
+        }
+
+        if (value.length < 3) {
             setCitySuggestions([]);
             setShowSuggestions(false);
+            return;
         }
+
+        const requestId = ++latestRequestId.current;
+        debounceTimeoutRef.current = setTimeout(async () => {
+            try {
+                const results = await searchCities(value);
+                if (requestId !== latestRequestId.current) return;
+                setCitySuggestions(results);
+                setShowSuggestions(true);
+            } catch (error) {
+                if (requestId !== latestRequestId.current) return;
+                console.error('City search failed:', error);
+                setShowSuggestions(false);
+            }
+        }, 250);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

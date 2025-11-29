@@ -9,7 +9,7 @@ import { parse } from 'csv-parse';
 interface CsvCity {
     code_postal: string;
     nom?: string;
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 // --- Helpers ---

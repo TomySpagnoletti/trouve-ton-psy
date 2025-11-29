@@ -11,11 +11,11 @@ export default async function Home({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const params = await searchParams;
-  const q = typeof params.q === 'string' ? params.q : '';
   const city = typeof params.city === 'string' ? params.city : '';
   const publicAudience = typeof params.public === 'string' ? params.public : '';
   const visio = params.visio === 'true';
-  const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
+  const parsedPage = typeof params.page === 'string' ? parseInt(params.page, 10) : 1;
+  const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
   const limit = 50;
   const skip = (page - 1) * limit;
 
@@ -23,7 +23,7 @@ export default async function Home({
   const postalCodeMatch = city.match(/\((\d{5})/);
   const cityNameOnly = postalCodeMatch ? city.replace(/\s*\([^)]*\)\s*$/, '').trim() : city;
 
-  const hasSearch = q || city || publicAudience || visio;
+  const hasSearch = Boolean(city || publicAudience || visio);
 
   let psychologists: Psychologist[] = [];
   let total = 0;
@@ -32,13 +32,6 @@ export default async function Home({
     const where: Prisma.PsychologistWhereInput = {
       visible: true,
     };
-
-    if (q) {
-      where.OR = [
-        { lastname: { contains: q, mode: 'insensitive' } },
-        { firstname: { contains: q, mode: 'insensitive' } },
-      ];
-    }
 
     if (city) {
       // Use cityNameOnly for address search (without postal code)
@@ -85,13 +78,10 @@ export default async function Home({
           const radiusKm = 15;
 
           // 2. Raw SQL query for Haversine distance
-          // We also include other filters (q, public, visio) in the SQL
+          // We also include other filters (public, visio) in the SQL
 
           let sqlWhere = Prisma.sql`WHERE visible = true`;
 
-          if (q) {
-            sqlWhere = Prisma.sql`${sqlWhere} AND (lastname ILIKE ${'%' + q + '%'} OR firstname ILIKE ${'%' + q + '%'})`;
-          }
           if (publicAudience) {
             sqlWhere = Prisma.sql`${sqlWhere} AND ${publicAudience} = ANY(public)`;
           }
@@ -182,12 +172,12 @@ export default async function Home({
             <div className="text-center mb-12 max-w-2xl">
               <h1 className="text-4xl md:text-5xl font-black mb-6 tracking-tight text-primary-dark">TROUVE TON <span className="underline decoration-4 decoration-primary/30">SOUTIEN</span> PSY</h1>
               <p className="text-xl font-medium leading-relaxed text-gray-700">
-                Le moteur de recherche du gouvernement est inutilisable.
+                L‘annuaire officiel ne filtre pas par spécialité.
                 <br />
                 Trouvez le psychologue qui <span className="text-primary font-bold underline decoration-4 decoration-primary/30">vous</span> correspond.
               </p>
               <p className="mt-6 text-gray-500">
-                Recherche par ville, par spécialité et téléconsultation.
+                Recherche par ville, par <span className="font-bold">spécialité</span> et téléconsultation.
                 <br />
                 Simple. Rapide. Efficace.
               </p>
