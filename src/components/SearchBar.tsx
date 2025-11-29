@@ -19,6 +19,7 @@ export default function SearchBar() {
     const wrapperRef = useRef<HTMLDivElement>(null);
     const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const latestRequestId = useRef(0);
+    const suggestionsCache = useRef<Map<string, string[]>>(new Map());
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -44,17 +45,27 @@ export default function SearchBar() {
             clearTimeout(debounceTimeoutRef.current);
         }
 
-        if (value.length < 3) {
+        const normalized = value.trim();
+
+        if (normalized.length < 3) {
             setCitySuggestions([]);
             setShowSuggestions(false);
+            return;
+        }
+
+        const cached = suggestionsCache.current.get(normalized.toLowerCase());
+        if (cached) {
+            setCitySuggestions(cached);
+            setShowSuggestions(true);
             return;
         }
 
         const requestId = ++latestRequestId.current;
         debounceTimeoutRef.current = setTimeout(async () => {
             try {
-                const results = await searchCities(value);
+                const results = await searchCities(normalized);
                 if (requestId !== latestRequestId.current) return;
+                suggestionsCache.current.set(normalized.toLowerCase(), results);
                 setCitySuggestions(results);
                 setShowSuggestions(true);
             } catch (error) {
@@ -62,7 +73,7 @@ export default function SearchBar() {
                 console.error('City search failed:', error);
                 setShowSuggestions(false);
             }
-        }, 250);
+        }, 120);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

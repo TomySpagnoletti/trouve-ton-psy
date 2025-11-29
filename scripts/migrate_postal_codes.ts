@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { PrismaClient } from '../src/generated/client/client';
+import { PrismaClient } from '@prisma/client';
 
 /**
  * Script pour migrer postal_code (String) vers postal_codes (String[])

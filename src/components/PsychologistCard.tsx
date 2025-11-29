@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Psychologist } from '@/generated/client/client';
+import { Psychologist } from '@prisma/client';
 import { getContactInfo } from '@/app/actions';
 
 interface Props {

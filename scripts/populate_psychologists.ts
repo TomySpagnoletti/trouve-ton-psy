@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { PrismaClient } from '../src/generated/client/client';
+import { PrismaClient } from '@prisma/client';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import proxyList from '../proxy_lists.json';
 import Database from 'better-sqlite3';

@@ -60,10 +60,13 @@ export async function searchCities(query: string) {
                     mode: 'insensitive',
                 },
             },
-            take: 30, // Get more results to filter and sort
+            take: 15, // Limit for faster responses
             select: {
                 name: true,
                 postal_codes: true,
+            },
+            orderBy: {
+                name: 'asc',
             },
         });
 

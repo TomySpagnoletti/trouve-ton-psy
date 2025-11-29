@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import SearchBar from '@/components/SearchBar';
 import PsychologistList from '@/components/PsychologistList';
 import ContactEmail from '@/components/ContactEmail';
-import { Prisma, Psychologist } from '@/generated/client/client';
+import { Prisma, Psychologist } from '@prisma/client';
 
 export default async function Home({
   searchParams,

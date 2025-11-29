@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Psychologist } from '@/generated/client/client';
+import { Psychologist } from '@prisma/client';
 import PsychologistCard from './PsychologistCard';
 
 interface Props {

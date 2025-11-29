@@ -1,4 +1,4 @@
-import { PrismaClient } from '@/generated/client/client';
+import { PrismaClient } from '@prisma/client';
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 const isProduction = process.env.NODE_ENV === 'production';
