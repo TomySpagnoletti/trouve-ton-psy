@@ -76,7 +76,10 @@ async function loadCitiesFromCsv(csvFilePath: string): Promise<Map<string, strin
             .on('data', (row: CsvCity) => {
                 const postalCode = row.code_postal?.trim();
                 if (postalCode) {
-                    const cityName = row.nom_de_la_commune || row.nom || row.name || row.ville || row.libelle_d_acheminement || postalCode;
+                    const cityNameCandidate = row.nom_de_la_commune ?? row.nom ?? row.name ?? row.ville ?? row.libelle_d_acheminement;
+                    const cityName = typeof cityNameCandidate === 'string' && cityNameCandidate.trim().length > 0
+                        ? cityNameCandidate.trim()
+                        : postalCode;
                     if (!citiesMap.has(postalCode)) {
                         citiesMap.set(postalCode, []);
                     }
