@@ -57,27 +57,30 @@ export default function SearchBar() {
         }
 
         const normalized = value.trim();
+        const cacheKey = normalized.toLowerCase();
+        const requestId = ++latestRequestId.current;
 
         if (normalized.length < 3) {
+            setIsFetchingCities(false);
             setCitySuggestions([]);
             setShowSuggestions(false);
             return;
         }
 
-        const cached = suggestionsCache.current.get(normalized.toLowerCase());
+        const cached = suggestionsCache.current.get(cacheKey);
         if (cached) {
+            setIsFetchingCities(false);
             setCitySuggestions(cached);
             setShowSuggestions(true);
             return;
         }
 
-        const requestId = ++latestRequestId.current;
         debounceTimeoutRef.current = setTimeout(async () => {
             try {
                 setIsFetchingCities(true);
                 const results = await searchCities(normalized);
                 if (requestId !== latestRequestId.current) return;
-                suggestionsCache.current.set(normalized.toLowerCase(), results);
+                suggestionsCache.current.set(cacheKey, results);
                 setCitySuggestions(results);
                 setShowSuggestions(true);
             } catch (error) {
