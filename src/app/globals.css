@@ -6,6 +6,7 @@
   --color-primary: #355C8A;
   --color-primary-dark: #274569;
   --color-primary-light: #E6F0FA;
+  color-scheme: light;
 }
 
 @theme inline {
@@ -19,13 +20,6 @@
   --radius-lg: 0.5rem;
   --radius-md: 0.375rem;
   --radius-sm: 0.25rem;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #000000;
-    --foreground: #ffffff;
-  }
 }
 
 body {

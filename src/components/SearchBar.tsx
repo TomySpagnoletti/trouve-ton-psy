@@ -60,7 +60,7 @@ export default function SearchBar() {
         const cacheKey = normalized.toLowerCase();
         const requestId = ++latestRequestId.current;
 
-        if (normalized.length < 3) {
+        if (normalized.length < 2) {
             setIsFetchingCities(false);
             setCitySuggestions([]);
             setShowSuggestions(false);
@@ -143,7 +143,7 @@ export default function SearchBar() {
             <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4 items-center">
 
                 <div className="flex-1 w-full md:w-auto flex flex-col relative" ref={wrapperRef}>
-                    <label className="text-xs font-semibold text-gray-500 mb-1 ml-1 uppercase tracking-wide">Ville</label>
+                    <label className="text-xs font-semibold text-gray-500 mb-1 ml-1 uppercase tracking-wide">Ville ou CP</label>
                     <div className="relative">
                         <input
                             type="text"
@@ -154,8 +154,8 @@ export default function SearchBar() {
                             value={city}
                             onChange={handleCityChange}
                             onKeyDown={handleKeyDown}
-                            onFocus={() => city.length >= 3 && setShowSuggestions(true)}
-                            placeholder="Ex: Bordeaux"
+                            onFocus={() => city.length >= 2 && setShowSuggestions(true)}
+                            placeholder="ex: Bordeaux ou 33..."
                             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                         />
                         {isFetchingCities && (
@@ -220,8 +220,13 @@ export default function SearchBar() {
                         />
                         <div className="flex items-center gap-2">
                             <span className="font-medium text-gray-700 group-hover:text-primary transition-colors">Visio</span>
-                            <svg className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            <svg className="w-6 h-6 text-gray-400 group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M15 10.5l4.5-2.5v7l-4.5-2.5M4 7h9a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V9a2 2 0 012-2z"
+                                />
                             </svg>
                         </div>
                     </label>

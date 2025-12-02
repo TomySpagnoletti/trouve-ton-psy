@@ -25,6 +25,19 @@ export const metadata: Metadata = {
     locale: "fr_FR",
     type: "website",
   },
+  manifest: "/favicon/site.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+      { url: "/favicon/favicon.ico" },
+      { url: "/favicon/favicon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: ["/favicon/favicon.ico"],
+    apple: [{ url: "/favicon/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  appleWebApp: {
+    title: "TTP",
+  },
 };
 
 export default function RootLayout({

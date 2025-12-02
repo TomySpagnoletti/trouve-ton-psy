@@ -46,6 +46,16 @@ model City {
   center_latitude           Float
   center_longitude          Float
   last_psychologist_fetch   DateTime?
+  postalCodeEntries         CityPostal[]
 
   @@index([name])
+}
+
+model CityPostal {
+  city_id     Int
+  postal_code String
+  city        City @relation(fields: [city_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([city_id, postal_code])
+  @@index([postal_code], map: "CityPostal_postal_code_idx")
 }

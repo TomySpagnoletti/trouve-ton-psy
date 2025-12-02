@@ -49,61 +49,77 @@ export async function getContactInfo(id: number) {
 }
 
 export async function searchCities(query: string) {
-    if (query.length < 3) return [];
+    const normalized = query.trim();
+    if (normalized.length < 2) return [];
+    const normalizedLower = normalized.toLowerCase();
+    const maxResults = 5;
+    const isPostalQuery = /^\d{2,5}$/.test(normalized);
+    const suggestions: string[] = [];
+    const seen = new Set<string>();
 
     try {
-        // Fetch more results to allow for better sorting
-        const cities = await prisma.city.findMany({
-            where: {
-                name: {
-                    contains: query,
-                    mode: 'insensitive',
-                },
-            },
-            take: 15, // Limit for faster responses
-            select: {
-                name: true,
-                postal_codes: true,
-            },
-            orderBy: {
-                name: 'asc',
-            },
-        });
+        if (isPostalQuery) {
+            const postalMatches = await prisma.$queryRaw<{ name: string; postal_code: string }[]>`
+                SELECT c.name, cp.postal_code
+                FROM "CityPostal" AS cp
+                JOIN "City" AS c ON c.id = cp.city_id
+                WHERE cp.postal_code LIKE ${normalized + '%'}
+                ORDER BY cp.postal_code ASC, c.name ASC
+                LIMIT ${maxResults}
+            `;
 
-        const queryLower = query.toLowerCase();
-
-        // Sort by relevance: exact match > starts with > contains
-        const sortedCities = cities.sort((a, b) => {
-            const aNameLower = a.name.toLowerCase();
-            const bNameLower = b.name.toLowerCase();
-
-            // Exact match comes first
-            if (aNameLower === queryLower && bNameLower !== queryLower) return -1;
-            if (bNameLower === queryLower && aNameLower !== queryLower) return 1;
-
-            // Then startsWith
-            const aStarts = aNameLower.startsWith(queryLower);
-            const bStarts = bNameLower.startsWith(queryLower);
-            if (aStarts && !bStarts) return -1;
-            if (bStarts && !aStarts) return 1;
-
-            // Finally alphabetical for same relevance
-            return a.name.localeCompare(b.name);
-        });
-
-        // Take only the top 5 most relevant
-        return sortedCities
-            .slice(0, 5)
-            .map(c => {
-                const codes = c.postal_codes.sort();
-                let postalDisplay = '';
-                if (codes.length > 2) {
-                    postalDisplay = `${codes[0]}...${codes[codes.length - 1]}`;
-                } else {
-                    postalDisplay = codes.join(', ');
+            for (const match of postalMatches) {
+                const display = `${match.name} (${match.postal_code})`;
+                if (!seen.has(display)) {
+                    suggestions.push(display);
+                    seen.add(display);
+                    if (suggestions.length >= maxResults) {
+                        return suggestions;
+                    }
                 }
-                return `${c.name} (${postalDisplay})`;
-            });
+            }
+        }
+
+        const remaining = maxResults - suggestions.length;
+        if (remaining <= 0) return suggestions;
+
+        // Single query for city names with ranked ordering
+        const cityLimit = Math.max(remaining * 3, 8);
+        const containsPattern = `%${normalizedLower}%`;
+        const prefixPattern = `${normalizedLower}%`;
+
+        const cityMatches = await prisma.$queryRaw<{ name: string; postal_codes: string[]; rank: number }[]>`
+            SELECT c.name,
+                   c.postal_codes,
+                   CASE
+                     WHEN lower(c.name) = ${normalizedLower} THEN 0
+                     WHEN lower(c.name) LIKE ${prefixPattern} THEN 1
+                     ELSE 2
+                   END AS rank
+            FROM "City" AS c
+            WHERE lower(c.name) LIKE ${containsPattern}
+            ORDER BY rank ASC, c.name ASC
+            LIMIT ${cityLimit}
+        `;
+
+        for (const city of cityMatches) {
+            if (suggestions.length >= maxResults) break;
+
+            const codes = city.postal_codes.slice().sort();
+            let postalDisplay = '';
+            if (codes.length > 2) {
+                postalDisplay = `${codes[0]}...${codes[codes.length - 1]}`;
+            } else {
+                postalDisplay = codes.join(', ');
+            }
+            const display = `${city.name} (${postalDisplay})`;
+            if (display && !seen.has(display)) {
+                suggestions.push(display);
+                seen.add(display);
+            }
+        }
+
+        return suggestions;
     } catch (error) {
         console.error('Error searching cities:', error);
         return [];
