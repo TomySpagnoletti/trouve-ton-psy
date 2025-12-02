@@ -172,7 +172,7 @@ export default async function Home({
             <div className="text-center mb-12 max-w-2xl">
               <h1 className="text-4xl md:text-5xl font-black mb-6 tracking-tight text-primary-dark">TROUVE TON <span className="underline decoration-4 decoration-primary/30">SOUTIEN</span> PSY</h1>
               <p className="text-xl font-medium leading-relaxed text-gray-700">
-                Trouvez le psychologue partenaire qui <span className="text-primary font-bold underline decoration-4 decoration-primary/30">vous</span> correspond.
+                Trouvez le psychologue partenaire &quot;Mon Soutien Psy&quot;<br />qui <span className="text-primary font-bold underline decoration-4 decoration-primary/30">vous</span> correspond.
               </p>
               <p className="mt-6 text-gray-500">
                 Recherche par ville, par <span className="font-bold">spécialité</span> et téléconsultation.

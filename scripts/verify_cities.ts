@@ -3,6 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import proxyList from '../proxy_lists.json';
 import * as readline from 'readline';
+import * as fs from 'fs';
+import * as path from 'path';
 
 type DbCity = {
     id: number;
@@ -43,7 +45,6 @@ type CityDifference = {
 
 type CityUpdateCandidate = {
     db: DbCity;
-    api: GeoApiCity;
     diffs: CityDifference[];
     updateData: CityUpdateData;
 };
@@ -79,6 +80,13 @@ type FailedFetch = {
     reason: string;
 };
 
+type PersistedState = {
+    totalCities: number;
+    processedInseeCodes: string[];
+    candidates: CityUpdateCandidate[];
+    failures: FailedFetch[];
+};
+
 const REQUEST_FIELDS =
     'nom,code,codeDepartement,codeRegion,codesPostaux,centre,departement,region';
 const BATCH_SIZE = Math.min(20, proxyList.length);
@@ -86,6 +94,8 @@ const MIN_DELAY_MS = 1_000;
 const MAX_DELAY_MS = 3_000;
 const REQUEST_TIMEOUT_MS = 25_000;
 const COORD_TOLERANCE = 0.000001;
+const REPORT_PATH = path.resolve(__dirname, '../verify_cities_report.txt');
+const PROGRESS_PATH = path.resolve(__dirname, '../verify_cities_progress.json');
 
 if (!process.env.OXYLABS_USERNAME || !process.env.OXYLABS_PASSWORD) {
     throw new Error('OXYLABS_USERNAME and OXYLABS_PASSWORD must be set to use proxies');
@@ -213,19 +223,168 @@ function computeDifferences(dbCity: DbCity, apiCity: GeoApiCity): CityUpdateCand
 
     return {
         db: dbCity,
-        api: apiCity,
         diffs,
         updateData,
     };
 }
 
-async function verifyCities(dbCities: DbCity[]) {
-    const candidates: CityUpdateCandidate[] = [];
-    const failures: FailedFetch[] = [];
-    const totalBatches = Math.ceil(dbCities.length / BATCH_SIZE);
+function loadPersistedState(totalCities: number, dbCities: DbCity[]): PersistedState {
+    if (!fs.existsSync(PROGRESS_PATH)) {
+        return { totalCities, processedInseeCodes: [], candidates: [], failures: [] };
+    }
 
-    for (let i = 0; i < dbCities.length; i += BATCH_SIZE) {
-        const batch = dbCities.slice(i, i + BATCH_SIZE);
+    try {
+        const raw = fs.readFileSync(PROGRESS_PATH, 'utf-8');
+        const parsed = JSON.parse(raw) as Partial<PersistedState>;
+        const dbByInsee = new Map(dbCities.map(city => [city.insee_code, city]));
+
+        const candidates =
+            parsed.candidates?.flatMap(candidate => {
+                const dbCity = candidate?.db?.insee_code
+                    ? dbByInsee.get(candidate.db.insee_code)
+                    : undefined;
+                if (!dbCity) return [];
+                return [{ ...candidate, db: dbCity }];
+            }) ?? [];
+
+        const failures =
+            parsed.failures?.flatMap(failure => {
+                const dbCity = failure?.city?.insee_code
+                    ? dbByInsee.get(failure.city.insee_code)
+                    : undefined;
+                if (!dbCity) return [];
+                return [{ ...failure, city: dbCity }];
+            }) ?? [];
+
+        const processedInseeCodes = Array.from(
+            new Set((parsed.processedInseeCodes ?? []).filter(code => dbByInsee.has(code)))
+        );
+
+        return { totalCities, processedInseeCodes, candidates, failures };
+    } catch (error) {
+        console.warn('Progress file is unreadable, starting from scratch.', error);
+        return { totalCities, processedInseeCodes: [], candidates: [], failures: [] };
+    }
+}
+
+function buildHistogram(candidates: CityUpdateCandidate[]) {
+    const histogram: Record<number, number> = {};
+    candidates.forEach(candidate => {
+        const count = candidate.diffs.length;
+        histogram[count] = (histogram[count] ?? 0) + 1;
+    });
+    return histogram;
+}
+
+function buildReport(state: PersistedState) {
+    const histogram = buildHistogram(state.candidates);
+    const lines: string[] = [];
+    const pending = Math.max(state.totalCities - state.processedInseeCodes.length, 0);
+
+    lines.push('City verification report');
+    lines.push(`Generated at: ${new Date().toISOString()}`);
+    lines.push(`Progress file: ${path.basename(PROGRESS_PATH)}`);
+    lines.push('');
+    lines.push(`Total cities in DB: ${state.totalCities}`);
+    lines.push(`Processed so far: ${state.processedInseeCodes.length}`);
+    lines.push(`Pending: ${pending}`);
+    lines.push(`Cities needing updates: ${state.candidates.length}`);
+    lines.push(`Failed fetches: ${state.failures.length}`);
+    lines.push('');
+    lines.push('Changes per city:');
+    if (Object.keys(histogram).length === 0) {
+        lines.push(' - none');
+    } else {
+        Object.keys(histogram)
+            .map(key => Number(key))
+            .sort((a, b) => a - b)
+            .forEach(changeCount => {
+                lines.push(` - ${changeCount} change(s): ${histogram[changeCount]}`);
+            });
+    }
+
+    lines.push('');
+    lines.push('Cities needing updates:');
+    if (state.candidates.length === 0) {
+        lines.push(' - none');
+    } else {
+        state.candidates.forEach((candidate, idx) => {
+            lines.push(
+                `${idx + 1}. ${candidate.db.name} (${candidate.db.insee_code}) - ${candidate.diffs.length} change(s)`
+            );
+            candidate.diffs.forEach(diff => {
+                lines.push(
+                    `   - ${diff.field}: ${JSON.stringify(diff.current)} -> ${JSON.stringify(diff.next)}`
+                );
+            });
+            lines.push('');
+        });
+    }
+
+    lines.push('Failed fetches:');
+    if (state.failures.length === 0) {
+        lines.push(' - none');
+    } else {
+        state.failures.forEach(failure => {
+            lines.push(
+                ` - ${failure.city.name} (${failure.city.insee_code}): ${failure.reason}`
+            );
+        });
+    }
+
+    return lines.join('\n');
+}
+
+function persistProgress(state: PersistedState) {
+    const normalizedState: PersistedState = {
+        totalCities: state.totalCities,
+        processedInseeCodes: Array.from(new Set(state.processedInseeCodes)),
+        candidates: state.candidates,
+        failures: state.failures,
+    };
+
+    fs.writeFileSync(PROGRESS_PATH, JSON.stringify(normalizedState, null, 2), 'utf-8');
+    fs.writeFileSync(REPORT_PATH, buildReport(normalizedState), 'utf-8');
+}
+
+function upsertCandidate(candidates: CityUpdateCandidate[], candidate: CityUpdateCandidate) {
+    const idx = candidates.findIndex(item => item.db.insee_code === candidate.db.insee_code);
+    if (idx >= 0) {
+        candidates[idx] = candidate;
+    } else {
+        candidates.push(candidate);
+    }
+}
+
+function upsertFailure(failures: FailedFetch[], failure: FailedFetch) {
+    const idx = failures.findIndex(item => item.city.insee_code === failure.city.insee_code);
+    if (idx >= 0) {
+        failures[idx] = failure;
+    } else {
+        failures.push(failure);
+    }
+}
+
+async function verifyCities(dbCities: DbCity[], initialState: PersistedState) {
+    const state: PersistedState = {
+        totalCities: dbCities.length,
+        processedInseeCodes: initialState.processedInseeCodes,
+        candidates: initialState.candidates,
+        failures: initialState.failures,
+    };
+
+    const processedSet = new Set(state.processedInseeCodes);
+    const remainingCities = dbCities.filter(city => !processedSet.has(city.insee_code));
+    const totalBatches = Math.ceil(remainingCities.length / BATCH_SIZE);
+
+    if (remainingCities.length === 0) {
+        console.log('Existing progress file already covers every city, skipping verification.');
+        persistProgress(state);
+        return state;
+    }
+
+    for (let i = 0; i < remainingCities.length; i += BATCH_SIZE) {
+        const batch = remainingCities.slice(i, i + BATCH_SIZE);
         const batchIndex = Math.floor(i / BATCH_SIZE) + 1;
         const delayMs = randomDelayMs();
 
@@ -240,8 +399,10 @@ async function verifyCities(dbCities: DbCity[]) {
 
         results.forEach((result, idx) => {
             const city = batch[idx];
+            processedSet.add(city.insee_code);
+
             if (result.status !== 'fulfilled' || !result.value) {
-                failures.push({
+                upsertFailure(state.failures, {
                     city,
                     reason: 'Failed to fetch data from geo.api.gouv.fr',
                 });
@@ -250,17 +411,19 @@ async function verifyCities(dbCities: DbCity[]) {
 
             const diff = computeDifferences(city, result.value);
             if (diff) {
-                candidates.push(diff);
+                upsertCandidate(state.candidates, diff);
             }
         });
 
+        state.processedInseeCodes = Array.from(processedSet);
+        persistProgress(state);
         process.stdout.write(
-            `Processed ${Math.min(i + batch.length, dbCities.length)}/${dbCities.length} cities\r`
+            `Processed ${state.processedInseeCodes.length}/${state.totalCities} cities\r`
         );
     }
 
     process.stdout.write('\n');
-    return { candidates, failures };
+    return state;
 }
 
 function printDifferences(candidates: CityUpdateCandidate[]) {
@@ -332,7 +495,14 @@ async function main() {
 
         console.log(`Loaded ${dbCities.length} cities from database`);
 
-        const { candidates, failures } = await verifyCities(dbCities);
+        const persistedState = loadPersistedState(dbCities.length, dbCities);
+        const { candidates, failures, processedInseeCodes, totalCities } =
+            await verifyCities(dbCities, persistedState);
+
+        console.log(
+            `Verification complete (${processedInseeCodes.length}/${totalCities} cities covered).`
+        );
+        persistProgress({ candidates, failures, processedInseeCodes, totalCities });
 
         if (failures.length > 0) {
             console.log(`\nFailed to verify ${failures.length} cities (skipped updates for them):`);
@@ -346,14 +516,16 @@ async function main() {
             }
         }
 
-        printDifferences(candidates);
-
+        console.log(`\nDetailed report: ${REPORT_PATH}`);
+        console.log(`Progress file: ${PROGRESS_PATH}`);
         if (candidates.length === 0) {
             console.log('No update required.');
             return;
         }
 
-        const confirmed = await askForConfirmation('\nApply these updates to the database? (yes/no): ');
+        const confirmed = await askForConfirmation(
+            `\nApply these updates to the database? (type "yes" to confirm, review ${REPORT_PATH}): `
+        );
         if (!confirmed) {
             console.log('Operation cancelled.');
             return;
