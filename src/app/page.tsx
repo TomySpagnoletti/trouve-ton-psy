@@ -75,7 +75,7 @@ export default async function Home({
           geoSearchPerformed = true;
           const lat = cityData.center_latitude;
           const lon = cityData.center_longitude;
-          const radiusKm = 15;
+          const radiusKm = 10;
 
           // 2. Raw SQL query for Haversine distance
           // We also include other filters (public, visio) in the SQL
