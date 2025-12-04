@@ -11,6 +11,7 @@ permissions:
 jobs:
   backup:
     runs-on: ubuntu-latest
+    environment: Production
     env:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }} # Environment secrets
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }} # Environment secrets
@@ -28,6 +29,13 @@ jobs:
       - name: Dump database
         run: |
           set -euo pipefail
+          # Fail fast if required environment variables are missing.
+          for v in SUPABASE_DB_URL SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY STORAGE_BUCKET; do
+            if [ -z "${!v:-}" ]; then
+              echo "Environment variable $v is not set. Check GitHub Secrets/Variables."
+              exit 1
+            fi
+          done
           workdir="$(mktemp -d)"
           supabase db dump --db-url "$SUPABASE_DB_URL" -f "$workdir/roles.sql" --role-only
           supabase db dump --db-url "$SUPABASE_DB_URL" -f "$workdir/schema.sql"
