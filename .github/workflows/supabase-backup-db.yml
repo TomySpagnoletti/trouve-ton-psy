@@ -1,0 +1,50 @@
+name: supabase-backup-db
+
+on:
+  schedule:
+    - cron: "0 2 * * *" # every day at 02:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }} # Environment secrets
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }} # Environment secrets
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }} # Environment secrets
+      STORAGE_BUCKET: ${{ secrets.SUPABASE_STORAGE_BUCKET }} # Environment secrets
+      STORAGE_PREFIX: ${{ vars.SUPABASE_STORAGE_PREFIX }} # Environment variables!
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Dump database
+        run: |
+          set -euo pipefail
+          workdir="$(mktemp -d)"
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f "$workdir/roles.sql" --role-only
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f "$workdir/schema.sql"
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f "$workdir/data.sql" --data-only --use-copy
+          tar -C "$workdir" -czf backup.tar.gz roles.sql schema.sql data.sql
+
+      - name: Upload to Supabase Storage
+        run: |
+          set -euo pipefail
+          ts="$(date -u +"%Y%m%dT%H%M%SZ")"
+          key="${STORAGE_PREFIX:-}${ts}-backup.tar.gz"
+          curl -sSf \
+            -X POST \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "x-upsert: true" \
+            -H "Content-Type: application/gzip" \
+            --data-binary "@backup.tar.gz" \
+            "${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${key}"
+          echo "Uploaded ${key}"

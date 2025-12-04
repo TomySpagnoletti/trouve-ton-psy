@@ -3,9 +3,9 @@
 Un moteur de recherche simple et efficace pour trouver un psychologue conventionné "Mon Soutien Psy".
 
 ## À propos
-Ce projet vise à offrir une alternative plus performante et ergonomique à l'annuaire officiel du gouvernement. Il permet de rechercher des psychologues par ville, nom, et d'appliquer des filtres pertinents (téléconsultation, public, spécialités, etc.).
+Ce projet vise à offrir une alternative plus performante et ergonomique à l'annuaire officiel du gouvernement. Il permet de rechercher des psychologues par ville, téléconsultation, public, spécialités, etc...
 
-L'objectif est de simplifier l'accès aux soins en proposant une interface épurée (Noir & Blanc) et rapide.
+L'objectif est de simplifier l'accès aux soins en proposant une interface épurée et rapide.
 
 ## Stack Technique
 - **Framework**: Next.js (App Router)
@@ -15,11 +15,11 @@ L'objectif est de simplifier l'accès aux soins en proposant une interface épur
 - **Data Source**: API "Mon Soutien Psy"
 
 ## Fonctionnalités
-- **Recherche avancée** : Par ville, nom du praticien.
+- **Recherche avancée** : Par ville, spécialité...
 - **Filtres** :
-  - Public (Adultes / Enfants)
+  - Public (Adultes, Ado., Enfants)
   - Téléconsultation (Visio)
-- **Mise à jour automatique** : Les données sont synchronisées régulièrement via des Cron Jobs.
+- **Mise à jour automatique** : Les données sont synchronisées régulièrement via scripts manuels.
 
 ## Installation
 
@@ -65,11 +65,11 @@ L'objectif est de simplifier l'accès aux soins en proposant une interface épur
 Le projet contient deux scripts principaux pour peupler la base de données.
 
 ### 1. Import des Villes (`populate_cities.ts`)
-Ce script permet d'importer les villes depuis un fichier JSON (contenant les données INSEE, coordonnées, etc.).
+Ce script permet d'importer les villes depuis un fichier CSV (contenant les données INSEE).
 
 **Usage :**
 ```bash
-npx tsx scripts/populate_cities.ts --file <chemin_vers_fichier_json>
+npx tsx scripts/populate_cities.ts --file <chemin_vers_fichier_csv>
 ```
 
 ### 2. Import des Psychologues (`populate_psychologists.ts`)
@@ -84,8 +84,6 @@ npx tsx scripts/populate_psychologists.ts
 npx tsx scripts/populate_psychologists.ts --load-only
 ```
 
-**Configuration (.env) :**
-- `PARALLEL_REQUESTS` : Nombre de requêtes parallèles (défaut: 20).
-- `OXYLABS_USERNAME` / `OXYLABS_PASSWORD` : Identifiants pour les proxies.
+----
 
 Pour plus d'informations, merci de nous contacter à trouvetonpsy@brainroad.xyz.
