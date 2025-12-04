@@ -18,6 +18,9 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }} # Environment secrets
       STORAGE_BUCKET: ${{ secrets.SUPABASE_STORAGE_BUCKET }} # Environment secrets
       STORAGE_PREFIX: ${{ vars.SUPABASE_STORAGE_PREFIX }} # Environment variables!
+      RETAIN_DAILY: 5
+      RETAIN_WEEKLY: 4
+      RETAIN_MONTHLY: 3
     steps:
       - uses: actions/checkout@v5
 
@@ -42,17 +45,97 @@ jobs:
           supabase db dump --db-url "$SUPABASE_DB_URL" -f "$workdir/data.sql" --data-only --use-copy
           tar -C "$workdir" -czf backup.tar.gz roles.sql schema.sql data.sql
 
-      - name: Upload to Supabase Storage
+      - name: Upload to Supabase Storage (daily/weekly/monthly)
         run: |
           set -euo pipefail
+          # Normalize prefix to end with '/' when provided
+          base_prefix="${STORAGE_PREFIX:-}"
+          if [ -n "$base_prefix" ] && [ "${base_prefix: -1}" != "/" ]; then
+            base_prefix="${base_prefix}/"
+          fi
+
           ts="$(date -u +"%Y%m%dT%H%M%SZ")"
-          key="${STORAGE_PREFIX:-}${ts}-backup.tar.gz"
-          curl -sSf \
-            -X POST \
-            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "x-upsert: true" \
-            -H "Content-Type: application/gzip" \
-            --data-binary "@backup.tar.gz" \
-            "${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${key}"
-          echo "Uploaded ${key}"
+          daily_key="${base_prefix}daily/backup-${ts}.tar.gz"
+
+          upload() {
+            local key="$1"
+            echo "Uploading ${key}"
+            curl -sSf \
+              -X POST \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "x-upsert: true" \
+              -H "Content-Type: application/gzip" \
+              --data-binary "@backup.tar.gz" \
+              "${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${key}"
+          }
+
+          upload "$daily_key"
+
+          # Weekly on Mondays (UTC)
+          if [ "$(date -u +%u)" = "1" ]; then
+            weekly_tag="$(date -u +%G-W%V)"
+            weekly_key="${base_prefix}weekly/backup-${weekly_tag}.tar.gz"
+            upload "$weekly_key"
+          fi
+
+          # Monthly on the 1st (UTC)
+          if [ "$(date -u +%d)" = "01" ]; then
+            monthly_tag="$(date -u +%Y-%m)"
+            monthly_key="${base_prefix}monthly/backup-${monthly_tag}.tar.gz"
+            upload "$monthly_key"
+          fi
+
+      - name: Prune old backups
+        run: |
+          set -euo pipefail
+          base_prefix="${STORAGE_PREFIX:-}"
+          if [ -n "$base_prefix" ] && [ "${base_prefix: -1}" != "/" ]; then
+            base_prefix="${base_prefix}/"
+          fi
+
+          prune() {
+            local prefix="$1" keep="$2" label="$3"
+            echo "Pruning ${label}: keeping last ${keep}"
+            list_json=$(curl -sSf \
+              -X POST \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Content-Type: application/json" \
+              --data "{\"prefix\":\"${prefix}\",\"limit\":1000}" \
+              "${SUPABASE_URL}/storage/v1/object/list/${STORAGE_BUCKET}")
+
+            PREFIX_CHECK="$prefix" python - "$keep" <<'PY'
+import sys, json, os, urllib.request, urllib.parse
+
+keep = int(sys.argv[1])
+prefix_check = os.environ.get("PREFIX_CHECK", "").rstrip("/")
+data = json.loads(sys.stdin.read() or "[]")
+names = [obj.get("name") for obj in data if obj.get("name")]
+# Sort newest-first lexicographically (timestamps in names)
+names.sort(reverse=True)
+to_delete = names[keep:]
+
+base = os.environ["SUPABASE_URL"].rstrip("/")
+bucket = os.environ["STORAGE_BUCKET"]
+token = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+
+for name in to_delete:
+    if prefix_check and not name.startswith(prefix_check):
+        name = f"{prefix_check}/{name}"
+    path = urllib.parse.quote(name, safe="/")
+    url = f"{base}/storage/v1/object/{bucket}/{path}"
+    req = urllib.request.Request(
+        url,
+        method="DELETE",
+        headers={"Authorization": f"Bearer {token}", "apikey": token},
+    )
+    with urllib.request.urlopen(req) as resp:
+        resp.read()
+    print(f"Deleted {name}")
+PY
+          }
+
+          prune "${base_prefix}daily" "${RETAIN_DAILY}" "daily"
+          prune "${base_prefix}weekly" "${RETAIN_WEEKLY}" "weekly"
+          prune "${base_prefix}monthly" "${RETAIN_MONTHLY}" "monthly"

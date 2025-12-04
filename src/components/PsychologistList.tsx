@@ -1,7 +1,7 @@
- 'use client';
+'use client';
 
 import { Psychologist } from '@prisma/client';
-import { useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import PsychologistCard from './PsychologistCard';
 
@@ -16,11 +16,28 @@ interface Props {
 export default function PsychologistList({ psychologists, currentPage, totalPages, total, searchParams }: Props) {
     const router = useRouter();
     const [isRouting, startTransition] = useTransition();
+    const [showScrollTop, setShowScrollTop] = useState(false);
 
     const createPageLink = (page: number) => {
         const params = new URLSearchParams(searchParams as Record<string, string>);
         params.set('page', page.toString());
         return `/?${params.toString()}`;
+    };
+
+    useEffect(() => {
+        const handleScroll = () => {
+            const shouldShow = window.scrollY > 220;
+            setShowScrollTop(shouldShow);
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        handleScroll(); // initialize based on current scroll position
+
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    const scrollToTop = () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     return (
@@ -86,6 +103,22 @@ export default function PsychologistList({ psychologists, currentPage, totalPage
                     )}
                 </div>
             )}
+
+            <button
+                type="button"
+                onClick={scrollToTop}
+                aria-label="Remonter en haut de la liste"
+                className={`fixed bottom-5 right-4 md:bottom-6 md:right-6 rounded-full bg-primary text-white shadow-lg shadow-primary/20 transition-all duration-200 ease-out hover:translate-y-[-2px] hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/70 p-3 md:p-3.5 z-40 ${showScrollTop ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    className="h-5 w-5 md:h-6 md:w-6"
+                >
+                    <path d="M12 5.5a1 1 0 0 1 .8.4l6 7.5a1 1 0 1 1-1.6 1.2L12 7.93l-5.2 6.67a1 1 0 1 1-1.6-1.2l6-7.5a1 1 0 0 1 .8-.4Z" />
+                </svg>
+            </button>
         </div>
     );
 }
