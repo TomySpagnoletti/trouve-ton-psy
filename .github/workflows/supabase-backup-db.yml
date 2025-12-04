@@ -105,35 +105,26 @@ jobs:
               --data "{\"prefix\":\"${prefix}\",\"limit\":1000}" \
               "${SUPABASE_URL}/storage/v1/object/list/${STORAGE_BUCKET}")
 
-            PREFIX_CHECK="$prefix" python - "$keep" <<'PY'
-import sys, json, os, urllib.request, urllib.parse
+            names=$(printf '%s' "$list_json" | jq -r '.[].name' | sort -r)
+            count=0
+            for name in $names; do
+              count=$((count + 1))
+              [ "$count" -le "$keep" ] && continue
 
-keep = int(sys.argv[1])
-prefix_check = os.environ.get("PREFIX_CHECK", "").rstrip("/")
-data = json.loads(sys.stdin.read() or "[]")
-names = [obj.get("name") for obj in data if obj.get("name")]
-# Sort newest-first lexicographically (timestamps in names)
-names.sort(reverse=True)
-to_delete = names[keep:]
+              full="$name"
+              if [ -n "$prefix" ] && [[ "$name" != "$prefix"* ]]; then
+                full="${prefix%/}/$name"
+              fi
 
-base = os.environ["SUPABASE_URL"].rstrip("/")
-bucket = os.environ["STORAGE_BUCKET"]
-token = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+              enc=$(python -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe='/'))" "$full")
 
-for name in to_delete:
-    if prefix_check and not name.startswith(prefix_check):
-        name = f"{prefix_check}/{name}"
-    path = urllib.parse.quote(name, safe="/")
-    url = f"{base}/storage/v1/object/{bucket}/{path}"
-    req = urllib.request.Request(
-        url,
-        method="DELETE",
-        headers={"Authorization": f"Bearer {token}", "apikey": token},
-    )
-    with urllib.request.urlopen(req) as resp:
-        resp.read()
-    print(f"Deleted {name}")
-PY
+              curl -sSf \
+                -X DELETE \
+                -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+                -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+                "${SUPABASE_URL%/}/storage/v1/object/${STORAGE_BUCKET}/${enc}"
+              echo "Deleted ${full}"
+            done
           }
 
           prune "${base_prefix}daily" "${RETAIN_DAILY}" "daily"
